@@ -1,0 +1,17 @@
+node_modules/
+.next/
+.vercel/
+.env*
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+/recovery/
+/experiments/
+/scripts/diagnostics/
+/tests/diagnostics/
+/docs/demo-quality/
+/docs/voice-stage-probe/
+/docs/voice-latency/
+*.private.json
+AGENTS.md
+CLAUDE.md
