@@ -952,9 +952,11 @@ export default function DemoPage({
   const assistantCaption = voice.captions.assistant;
   const voiceInputActive = voiceMode === "mirror" ? mirrorInputActive : voice.isListening;
   const activeFormatMode: UiMode = uiMode;
-  const visibleFormats = animeDemo ? UI_FORMATS.filter((format) => format.id === "apple") : UI_FORMATS;
-  const showAnimeLink = !animeDemo && animeAvailable;
-  const activeFormatIndex = Math.max(0, visibleFormats.findIndex((format) => format.id === activeFormatMode));
+  const visibleFormats = UI_FORMATS;
+  const showAnimeLink = animeDemo || animeAvailable;
+  const activeFormatIndex = animeDemo
+    ? visibleFormats.length
+    : Math.max(0, visibleFormats.findIndex((format) => format.id === activeFormatMode));
   const formatPicker = (className = "") => (
     <nav
       className={`format-picker ${className}`}
@@ -964,9 +966,16 @@ export default function DemoPage({
         "--format-index": activeFormatIndex,
       } as CSSProperties}
     >
-      {/* Keep the cost/prepare disclosure visible in this first anime prototype.
-          Human formats stay identical; other anime formats are not advertised. */}
-      {visibleFormats.map((format) => (
+      {/* Anime keeps its preparation flow; layout links return to the Human demo. */}
+      {visibleFormats.map((format) => animeDemo ? (
+        <Link
+          key={format.id}
+          href={`/${format.urlLabel}`}
+          aria-label={`Switch to ${format.label} UI`}
+        >
+          {format.label}
+        </Link>
+      ) : (
         <button
           key={format.id}
           type="button"
@@ -978,7 +987,14 @@ export default function DemoPage({
           {format.label}
         </button>
       ))}
-      {showAnimeLink && <Link href="/anime" aria-label="Open anime demo">Anime</Link>}
+      {showAnimeLink && (
+        <Link
+          href="/anime"
+          aria-label="Open anime demo"
+          className={animeDemo ? "is-active" : ""}
+          aria-current={animeDemo ? "page" : undefined}
+        >Anime</Link>
+      )}
     </nav>
   );
   const visibleError = session.error || voiceError;
