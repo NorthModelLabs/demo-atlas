@@ -10,6 +10,6 @@ export function animeReady(result: Record<string, unknown>, id: string): boolean
   // cannot override failed/manual-review/unknown status or a foreign handle.
   if (result.status === "failed" || result.status === "manual_review") throw new Error("Anime portrait preparation failed.");
   if (result.status === "ready" && result.realtime_ready === true) return true;
-  if (["queued", "processing", "publishing"].includes(String(result.status)) && result.realtime_ready === false) return false;
+  if (["queued", "processing", "provider_started", "publishing"].includes(String(result.status)) && result.realtime_ready === false) return false;
   throw new Error("Atlas returned an inconsistent enrollment status; no session was started.");
 }
