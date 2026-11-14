@@ -145,45 +145,6 @@ function WarningIcon() {
   );
 }
 
-function ShareIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <circle cx="18" cy="5" r="3" />
-      <circle cx="6" cy="12" r="3" />
-      <circle cx="18" cy="19" r="3" />
-      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-    </svg>
-  );
-}
-
-function CopyIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <rect x="9" y="9" width="13" height="13" rx="2" />
-      <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-    </svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  );
-}
-
-function GlobeIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <circle cx="12" cy="12" r="10" />
-      <line x1="2" y1="12" x2="22" y2="12" />
-      <path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
-    </svg>
-  );
-}
-
 function PlayIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -275,15 +236,6 @@ function CloseIcon() {
   );
 }
 
-function LockIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <rect x="3" y="11" width="18" height="11" rx="2" />
-      <path d="M7 11V7a5 5 0 0110 0v4" />
-    </svg>
-  );
-}
-
 function formatTime(s: number) {
   const m = Math.floor(s / 60);
   const sec = s % 60;
@@ -371,10 +323,8 @@ export default function DemoPage({
 
   const [configReady, setConfigReady] = useState<{ llm: boolean; tts: boolean } | null>(null);
 
-  const [visibility, setVisibility] = useState<"private" | "public">("private");
   const [uiMode, setUiMode] = useState<UiMode>(() => initialAnimeDemo ? "apple" : getInitialUiMode(initialUiMode));
   const [voiceMode, setVoiceMode] = useState<VoiceMode>(() => getInitialVoiceMode(initialVoiceMode));
-  const [copied, setCopied] = useState(false);
   const [tiktokToolsOpen, setTiktokToolsOpen] = useState(false);
   const [appleSettingsOpen, setAppleSettingsOpen] = useState(false);
   const [meetLeaveArmed, setMeetLeaveArmed] = useState(false);
@@ -867,32 +817,6 @@ export default function DemoPage({
     window.setTimeout(() => setMeetLeaveArmed(false), 2200);
   };
 
-  const [viewerLink, setViewerLink] = useState({ sessionId: "", path: "" });
-  useEffect(() => {
-    const id = session.sessionId;
-    if (!id) return;
-    let cancelled = false;
-    fetch(`/api/session/${id}/share`).then(async response => {
-      if (!response.ok) return;
-      const data = await response.json();
-      if (!cancelled && typeof data.path === "string") setViewerLink({ sessionId: id, path: data.path });
-    }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [session.sessionId]);
-  const viewerUrl = viewerLink.sessionId === session.sessionId && viewerLink.path
-    ? `${typeof window !== "undefined" ? window.location.origin : ""}${viewerLink.path}` : "";
-
-  const copyShareLink = useCallback(async () => {
-    if (!viewerUrl) return;
-    try {
-      await navigator.clipboard.writeText(viewerUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      /* clipboard blocked */
-    }
-  }, [viewerUrl]);
-
   const sendChatRef = useRef<(text: string) => void>(undefined);
 
   const sendChat = useCallback((text: string) => {
@@ -1121,10 +1045,6 @@ export default function DemoPage({
                 </div>
 
                 <div className="apple-settings-list">
-                  <button type="button" onClick={() => setVisibility((value) => value === "private" ? "public" : "private")}>
-                    <span>{visibility === "public" ? <GlobeIcon /> : <LockIcon />} Visibility</span>
-                    <strong>{visibility === "public" ? "Public" : "Private"}</strong>
-                  </button>
                   <button type="button" onClick={downloadCurrentFace} disabled={!facePreview}>
                     <span><DownloadIcon /> Avatar image</span>
                     <strong>Save</strong>
@@ -1556,10 +1476,6 @@ export default function DemoPage({
                       <button type="button" onClick={() => fileInputRef.current?.click()} aria-label="Upload avatar"><UploadIcon /></button>
                     </div>
                   </div>
-                  <button type="button" className="meet-settings-row" onClick={() => setVisibility((value) => value === "private" ? "public" : "private")}>
-                    <span>{visibility === "public" ? <GlobeIcon /> : <LockIcon />} Meeting visibility</span>
-                    <strong>{visibility === "public" ? "Public" : "Private"}</strong>
-                  </button>
                   <button type="button" className="meet-settings-row" onClick={downloadCurrentFace} disabled={!facePreview}>
                     <span><DownloadIcon /> Avatar image</span>
                     <strong>Save</strong>
@@ -1652,13 +1568,6 @@ export default function DemoPage({
               aria-label="Open chat"
               aria-expanded={meetPanel === "chat"}
             ><ChatIcon /></button>
-            <button
-              type="button"
-              onClick={() => setVisibility((value) => value === "private" ? "public" : "private")}
-              className={visibility === "public" ? "is-active" : ""}
-              aria-label="Toggle meeting visibility"
-              title={visibility === "public" ? "Public meeting" : "Private meeting"}
-            >{visibility === "public" ? <GlobeIcon /> : <LockIcon />}</button>
           </div>
         </footer>
 
@@ -1842,9 +1751,6 @@ export default function DemoPage({
             <>
               <span className="w-1.5 h-1.5 bg-accent animate-pulse-glow" />
               <span className="text-accent">Live</span>
-              {visibility === "public" && (
-                <span className="text-accent/60 ml-2 flex items-center gap-1"><GlobeIcon /> Public</span>
-              )}
               <span className="text-muted ml-2">{formatTime(sessionTime)}</span>
               {session.latency > 0 && (
                 <span className="text-[#666] ml-2">{session.latency}ms</span>
@@ -1958,7 +1864,7 @@ export default function DemoPage({
               </span>
               <span className="tiktok-caption text-[12px] text-white/75">
                 {isConnected
-                  ? `${visibility === "public" ? "Public" : "Private"} · ${formatTime(sessionTime)}`
+                  ? `Connected · ${formatTime(sessionTime)}`
                   : session.status === "connecting"
                     ? "Connecting..."
                     : "Ready to connect"}
@@ -2034,23 +1940,6 @@ export default function DemoPage({
                   </button>
                   <span className="tiktok-action-label">
                     {voiceMode === "mirror" ? (mirrorInputActive ? "Mirror" : "Mic") : voiceInputActive ? "Live" : "Mic"}
-                  </span>
-                </>
-              )}
-
-              {!isConnected && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setVisibility((value) => value === "private" ? "public" : "private")}
-                    className={`tiktok-action-button ${visibility === "public" ? "tiktok-action-live" : ""}`}
-                    aria-label="Toggle visibility"
-                    title="Toggle visibility"
-                  >
-                    {visibility === "public" ? <GlobeIcon /> : <LockIcon />}
-                  </button>
-                  <span className="tiktok-action-label">
-                    {visibility === "public" ? "Public" : "Private"}
                   </span>
                 </>
               )}
@@ -2463,73 +2352,6 @@ export default function DemoPage({
             </p>
           </div>
 
-          {/* Visibility toggle */}
-          <div className="px-6 py-5 border-b border-border">
-            <label className="block font-mono text-[10px] tracking-[0.2em] text-muted uppercase mb-3">
-              Visibility
-            </label>
-            <div className="flex border border-border">
-              <button
-                onClick={() => !isConnected && setVisibility("private")}
-                disabled={isConnected}
-                className={`flex-1 py-2.5 font-mono text-[10px] tracking-[0.2em] uppercase text-center transition-all duration-200 flex items-center justify-center gap-1.5 ${
-                  visibility === "private"
-                    ? "bg-[#050505] text-accent shadow-[inset_0_0_20px_rgba(0,255,136,0.06),0_0_12px_rgba(0,255,136,0.1)]"
-                    : "text-[#555] hover:text-[#888]"
-                } disabled:cursor-not-allowed`}
-              >
-                <LockIcon /> Private
-              </button>
-              <button
-                onClick={() => !isConnected && setVisibility("public")}
-                disabled={isConnected}
-                className={`flex-1 py-2.5 font-mono text-[10px] tracking-[0.2em] uppercase text-center transition-all duration-200 flex items-center justify-center gap-1.5 border-l border-border ${
-                  visibility === "public"
-                    ? "bg-[#050505] text-accent shadow-[inset_0_0_20px_rgba(0,255,136,0.06),0_0_12px_rgba(0,255,136,0.1)]"
-                    : "text-[#555] hover:text-[#888]"
-                } disabled:cursor-not-allowed`}
-              >
-                <GlobeIcon /> Public
-              </button>
-            </div>
-            <p className="font-mono text-[9px] text-[#555] mt-2">
-              {visibility === "private"
-                ? "Only you can see this session"
-                : "Anyone with the link can watch (view-only)"}
-            </p>
-          </div>
-
-          {/* Share link (public + connected only) */}
-          {isConnected && visibility === "public" && session.sessionId && (
-            <div className="px-6 py-5 border-b border-border">
-              <label className="block font-mono text-[10px] tracking-[0.2em] text-muted uppercase mb-3">
-                <span className="flex items-center gap-1.5"><ShareIcon /> Share</span>
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={viewerUrl}
-                  readOnly
-                  className="flex-1 bg-[#0a0a0a] border border-[#333] px-3 py-2 text-[10px] text-[#888] font-mono focus:outline-none select-all truncate"
-                  onClick={(e) => (e.target as HTMLInputElement).select()}
-                />
-                <button
-                  onClick={copyShareLink}
-                  className={`px-3 py-2 border font-mono text-[10px] tracking-[0.1em] uppercase transition-all duration-200 flex items-center gap-1 ${
-                    copied
-                      ? "border-accent text-accent"
-                      : "border-[#444] text-[#888] hover:border-accent hover:text-accent"
-                  }`}
-                >
-                  {copied ? <><CheckIcon /> Copied</> : <><CopyIcon /> Copy</>}
-                </button>
-              </div>
-              <p className="font-mono text-[9px] text-[#555] mt-2">
-                Viewers can watch the avatar stream — no mic, no publishing
-              </p>
-            </div>
-          )}
-
           {/* Connection Controls */}
           <div className="px-6 py-5 space-y-6">
             {isDisconnected && !session.error && (
@@ -2634,12 +2456,6 @@ export default function DemoPage({
                     <div className="flex justify-between">
                       <span className="text-muted tracking-[0.15em]">MODE</span>
                       <span className="text-foreground">Passthrough</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted tracking-[0.15em]">VISIBILITY</span>
-                      <span className={visibility === "public" ? "text-accent" : "text-foreground"}>
-                        {visibility === "public" ? "Public" : "Private"}
-                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted tracking-[0.15em]">SESSION</span>
