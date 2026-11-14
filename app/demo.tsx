@@ -31,6 +31,17 @@ const FACE_PRESETS = [
   { id: "anime-v578", label: "Anime", src: "/faces/anime.png" },
 ];
 
+function LocalClock() {
+  const [time, setTime] = useState("");
+  useEffect(() => {
+    const update = () => setTime(new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
+    update();
+    const timer = setInterval(update, 30_000);
+    return () => clearInterval(timer);
+  }, []);
+  return <>{time}</>;
+}
+
 type ChatMsg = {
   id: string;
   role: "user" | "atlas" | "system";
@@ -1294,7 +1305,7 @@ export default function DemoPage({
             <span className="meet-brand-mark" aria-hidden="true"><CameraIcon /></span>
             <div>
               <strong>Atlas conversation</strong>
-              <span>{new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · atlas-demo</span>
+              <span><LocalClock /> · atlas-demo</span>
             </div>
           </div>
           <div className="meet-header-actions">
@@ -1492,7 +1503,7 @@ export default function DemoPage({
 
         <footer className="meet-footer">
           <div className="meet-footer-meta">
-            <strong>{new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</strong>
+            <strong><LocalClock /></strong>
             <span>atlas-demo</span>
           </div>
 
