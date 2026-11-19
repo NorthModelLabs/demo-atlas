@@ -1,6 +1,6 @@
 # Atlas Realtime — Example App
 
-A minimal Next.js example that demonstrates [Atlas Realtime](https://www.northmodellabs.com) avatar sessions using the [`@northmodellabs/atlas-react`](https://www.npmjs.com/package/@northmodellabs/atlas-react) SDK. Supports both **1-to-1** (private) and **public** (multi-viewer) modes.
+A minimal Next.js example that demonstrates [Atlas Realtime](https://www.northmodellabs.com) avatar sessions using the [`@northmodellabs/atlas-react`](https://www.npmjs.com/package/@northmodellabs/atlas-react) SDK. Sessions are one-to-one. The client supplies the audio; Atlas renders the avatar.
 
 > **New: ElevenLabs STT** — Voice input now uses ElevenLabs Scribe v2 with hardware echo cancellation, eliminating the feedback loop where the avatar talks to itself. [See below →](#voice-input-elevenlabs-stt)
 
@@ -74,7 +74,6 @@ export default function Demo() {
     createSession: async (face) => {
       const form = new FormData();
       form.append("face", face);
-      form.append("mode", "passthrough");
       const res = await fetch("/api/session", { method: "POST", body: form });
       const data = await res.json();
       return {
@@ -124,7 +123,6 @@ const session = useAtlasSession({
   createSession: async (face) => {
     const form = new FormData();
     form.append("face", face);
-    form.append("mode", "passthrough");
     const res = await fetch("/api/session", { method: "POST", body: form });
     const data = await res.json();
     return { sessionId: data.session_id, livekitUrl: data.livekit_url, token: data.token };
@@ -252,7 +250,8 @@ const scribe = useScribe({
   vadSilenceThresholdSecs: 0.8,
   languageCode: "en",
   onCommittedTranscript: (data) => {
-    if (data.text.trim()) sendChat(data.text.trim());
+    // Send the transcript to your application’s chat backend.
+    if (data.text.trim()) onUserTranscript(data.text.trim());
   },
 });
 
@@ -322,7 +321,6 @@ const session = useAtlasSession({
 | `connect(face?, faceUrl?)` | `function` | Start a session with a face image or URL |
 | `disconnect()` | `function` | End the session |
 | `publishAudio(audio)` | `function` | Send TTS audio (base64, Blob, or ArrayBuffer) — **see note below** |
-| `sendChat(text)` | `function` | Send a chat message (conversation mode) |
 | `setMicEnabled(enabled)` | `function` | Mute / unmute the microphone |
 | `setVolume(v)` | `function` | Set playback volume (0–100) |
 | `messages` | `array` | Chat message history |
@@ -336,164 +334,7 @@ const session = useAtlasSession({
 
 ---
 
-## Session Modes
-
-### 1-to-1 (Private)
-
-The default. One user creates a session, gets a token, and connects. Nobody else can see the avatar.
-
-```
-Browser  →  POST /api/session  →  Atlas creates room  →  connect with token
-```
-
-### Multi-Viewer (Public Mode)
-
-One user creates and drives the session. Additional viewers get **view-only tokens** for the same room — they can watch but not publish audio/video.
-
-```
-Host browser    →  POST /api/session           →  full token (can publish)
-Viewer browser  →  POST /api/session/:id/viewer →  view-only token (subscribe only)
-```
-
-To add viewers to an active session:
-
-```typescript
-// Server-side: get a viewer token
-const res = await fetch(`${ATLAS_API_URL}/v1/realtime/session/${sessionId}/viewer`, {
-  method: "POST",
-  headers: { Authorization: `Bearer ${ATLAS_API_KEY}` },
-});
-const { token, livekit_url, room } = await res.json();
-// Give this token to the viewer client
-```
-
-```typescript
-// Client-side: viewer connects with livekit-client
-import { Room, RoomEvent } from "livekit-client";
-
-const room = new Room();
-await room.connect(livekit_url, token);
-
-room.on(RoomEvent.TrackSubscribed, (track) => {
-  if (track.kind === "video") {
-    const el = track.attach();
-    document.getElementById("viewer-video").appendChild(el);
-  }
-});
-```
-
-Viewer tokens have these permissions:
-| Permission | Value |
-|-----------|-------|
-| `can_publish` | `false` |
-| `can_subscribe` | `true` |
-| `can_publish_data` | `false` |
-
-No extra GPU cost — viewers just subscribe to the existing video/audio tracks in the LiveKit room.
-
-#### Complete viewer proxy route (server-side)
-
-```typescript
-// app/api/session/[id]/viewer/route.ts
-import { NextResponse } from "next/server";
-
-const ATLAS_API_URL = process.env.ATLAS_API_URL || "";
-const ATLAS_API_KEY = process.env.ATLAS_API_KEY || "";
-
-export async function POST(
-  _req: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  const { id } = await params;
-
-  const res = await fetch(
-    `${ATLAS_API_URL}/v1/realtime/session/${encodeURIComponent(id)}/viewer`,
-    {
-      method: "POST",
-      headers: { Authorization: `Bearer ${ATLAS_API_KEY}` },
-    },
-  );
-
-  const data = await res.json();
-  return NextResponse.json(data, { status: res.status });
-}
-```
-
-#### Complete viewer page (client-side)
-
-```typescript
-// app/watch/[id]/page.tsx
-"use client";
-
-import { useEffect, useRef, useState, use } from "react";
-import { Room, RoomEvent, Track } from "livekit-client";
-
-export default function WatchPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id: sessionId } = use(params);
-  const [status, setStatus] = useState<"loading" | "connected" | "ended" | "error">("loading");
-  const videoRef = useRef<HTMLDivElement>(null);
-  const roomRef = useRef<Room | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      const res = await fetch(`/api/session/${sessionId}/viewer`, { method: "POST" });
-      if (!res.ok) { setStatus("error"); return; }
-      const data = await res.json();
-
-      const room = new Room({ adaptiveStream: true });
-      roomRef.current = room;
-
-      room.on(RoomEvent.TrackSubscribed, (track) => {
-        if (track.kind === Track.Kind.Video && videoRef.current) {
-          const el = track.attach();
-          el.style.width = "100%";
-          el.style.height = "100%";
-          el.style.objectFit = "contain";
-          videoRef.current.innerHTML = "";
-          videoRef.current.appendChild(el);
-        }
-        if (track.kind === Track.Kind.Audio) {
-          document.body.appendChild(track.attach());
-        }
-      });
-
-      room.on(RoomEvent.Disconnected, () => { if (!cancelled) setStatus("ended"); });
-
-      await room.connect(data.livekit_url, data.token);
-      if (!cancelled) setStatus("connected");
-    })();
-
-    return () => { cancelled = true; roomRef.current?.disconnect(); };
-  }, [sessionId]);
-
-  return (
-    <div style={{ width: "100vw", height: "100vh", background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div ref={videoRef} style={{ width: 512, height: 512, display: status === "connected" ? "block" : "none" }} />
-      {status === "loading" && <p style={{ color: "#888" }}>Joining...</p>}
-      {status === "ended" && <p style={{ color: "#888" }}>Session ended</p>}
-      {status === "error" && <p style={{ color: "#f33" }}>Unable to join this session</p>}
-    </div>
-  );
-}
-```
-
-### Using the UI
-
-This example app includes a built-in visibility toggle:
-
-1. Before connecting, switch between **Private** (1-to-1) and **Public** in the control panel
-2. Connect as normal with a face image
-3. In **Public** mode, a **Share** section appears with a copyable viewer link
-4. Send the link to anyone — they'll land on `/watch/:sessionId` and see the avatar stream in view-only mode
-
-| Page | Who | What they see |
-|------|-----|---------------|
-| `/` (main app) | Host | Full controls — face, mic, chat, swap, disconnect |
-| `/watch/:id` | Viewers | Video only — "Watching" badge, "View only" indicator, no controls |
-
----
+Omit `mode` for passthrough, or send `emotion` when using behavior controls. Both modes use caller-provided audio.
 
 ## Full Architecture
 
@@ -504,12 +345,10 @@ Browser  →  /api/session (Next.js)  →  /v1/realtime/session (Atlas API)
 | Route | Method | Purpose |
 |-------|--------|---------|
 | `/` | — | Main app (host view with full controls) |
-| `/watch/[id]` | — | **Viewer page** (view-only, auto-connects with viewer token) |
 | `/api/session` | POST | Create session (forwards face + mode to Atlas) |
 | `/api/session/[id]` | GET | Check session status |
 | `/api/session/[id]` | PATCH | Swap face mid-session |
 | `/api/session/[id]` | DELETE | End session |
-| `/api/session/[id]/viewer` | POST | Get a view-only token for multi-viewer |
 | `/api/chat` | POST | Text → LLM → text response (fast, no audio) |
 | `/api/tts` | POST | Text → ElevenLabs → base64 audio |
 | `/api/scribe-token` | GET | Single-use ElevenLabs Scribe WebSocket token |

@@ -49,7 +49,7 @@ export async function POST(req: NextRequest, context: Context) {
     if (typeof result.data.session_id !== "string" || !SESSION_ID.test(result.data.session_id)) {
       return NextResponse.json({ message: "Session response could not be confirmed." }, { status: 502 });
     }
-    // SAME browser-owned /api/session/id delete/voice/share lifecycle as human.
+    // SAME browser-owned /api/session/id delete/voice lifecycle as human.
     return grant(response, "session", result.data.session_id);
   } catch {
     return NextResponse.json({ message: "Session start could not be confirmed. Do not automatically retry; Atlas may already have accepted it." }, { status: 502 });
