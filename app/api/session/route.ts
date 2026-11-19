@@ -7,7 +7,7 @@ const ATLAS_API_URL = process.env.ATLAS_API_URL || "";
 const ATLAS_API_KEY = process.env.ATLAS_API_KEY || "";
 const ATLAS_MODEL_VARIANT = process.env.ATLAS_MODEL_VARIANT || "";
 
-const VALID_MODES = new Set(["conversation", "passthrough"]);
+const VALID_MODES = new Set(["passthrough", "emotion"]);
 const VALID_MODEL_VARIANTS = new Set(["best", "experimental", "test", "test2", "test3", "test4", "test5"]);
 
 function atlasHeaders(contentType?: string) {
@@ -53,9 +53,9 @@ export async function POST(req: NextRequest) {
       const invalid = portraitError(face);
       if (invalid) return NextResponse.json({ error: "invalid_portrait", message: invalid }, { status: 413 });
 
-      if (mode && !VALID_MODES.has(String(mode))) {
+      if (mode !== null && !VALID_MODES.has(String(mode))) {
         return NextResponse.json(
-          { error: "invalid_mode", message: "Mode must be 'conversation' or 'passthrough'." },
+          { error: "invalid_mode", message: "Mode must be 'passthrough' or 'emotion'." },
           { status: 400 },
         );
       }
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
       const mode = typeof body.mode === "string" ? body.mode : undefined;
       if (Object.prototype.hasOwnProperty.call(body, "mode") && (!mode || !VALID_MODES.has(mode))) {
         return NextResponse.json(
-          { error: "invalid_mode", message: "Mode must be 'conversation' or 'passthrough'." },
+          { error: "invalid_mode", message: "Mode must be 'passthrough' or 'emotion'." },
           { status: 400 },
         );
       }

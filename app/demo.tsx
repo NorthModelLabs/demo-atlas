@@ -287,13 +287,12 @@ export default function DemoPage({
         const invalid = portraitError(face); if (invalid) throw new Error(invalid);
         const form = new FormData();
         form.append("face", face);
-        form.append("mode", "passthrough");
         res = await fetch("/api/session", { method: "POST", body: form });
       } else if (faceUrl) {
         res = await fetch("/api/session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ face_url: faceUrl, mode: "passthrough" }),
+          body: JSON.stringify({ face_url: faceUrl }),
         });
       } else {
         throw new Error("No face image provided");
